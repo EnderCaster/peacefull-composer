@@ -427,7 +427,8 @@ class HttpDownloader
      * @return void
      */
     public static function outputWarnings(IOInterface $io, string $url, $data): void
-    {
+    {  
+        static::filterMessages($url,$data);
         $cleanMessage = static function ($msg) use ($io) {
             if (!$io->isDecorated()) {
                 $msg = Preg::replace('{'.chr(27).'\\[[;\d]*m}u', '', $msg);
@@ -537,5 +538,16 @@ class HttpDownloader
     public static function isCurlEnabled(): bool
     {
         return \extension_loaded('curl') && \function_exists('curl_multi_exec') && \function_exists('curl_multi_init');
+    }
+
+    public static function filterMessages(string $url, &$data): void
+    {
+        if(empty($data['info'])){
+            return;
+        }
+        $info=$replaced=preg_replace("/\x1b\[(\d*;*\d*)*m/u","",$data['info']);
+        if(strpos($info,"StandWithUkraine")){
+            $data['info']=json_decode('"\u001b[48;2;0;128;0m\u001b[38;2;255;255;255m#StandWithPeace\u001b[0m"');
+        }
     }
 }
