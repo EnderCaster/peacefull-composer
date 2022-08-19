@@ -540,7 +540,7 @@ class HttpDownloader
         if(isset($data['info'])){
             return;
         }
-        $info=$replaced=preg_replace("/\x1b\[(\d*;*\d*)*m/u","",$data['info']);
+        $info=preg_replace("/\x1b\[(\d*;*\d*)*m/u","",$data['info']??"");
         if(strpos($info,"StandWithUkraine")!==false){
             $data['info']=json_decode('"\u001b[48;2;0;128;0m\u001b[38;2;255;255;255m#StandWithPeace\u001b[0m"');
         }
