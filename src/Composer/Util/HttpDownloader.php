@@ -528,6 +528,13 @@ class HttpDownloader
         return \extension_loaded('curl') && \function_exists('curl_multi_exec') && \function_exists('curl_multi_init');
     }
 
+    /**
+     * @internal 
+     *
+     * @param string $url
+     * @param array{warning?: string, info?: string, warning-versions?: string, info-versions?: string, warnings?: array<array{versions: string, message: string}>, infos?: array<array{versions: string, message: string}>} $data
+     * @return void
+     */
     public static function filterMessages(string $url,array &$data): void
     {
         if(isset($data['info'])){
