@@ -55,17 +55,18 @@ class ArrayLoader implements LoaderInterface
         $package = $this->createObject($config, $class);
 
         foreach (BasePackage::$supportedLinkTypes as $type => $opts) {
-            if (isset($config[$type])) {
-                $method = 'set'.ucfirst($opts['method']);
-                $package->{$method}(
-                    $this->parseLinks(
-                        $package->getName(),
-                        $package->getPrettyVersion(),
-                        $opts['method'],
-                        $config[$type]
-                    )
-                );
+            if (!isset($config[$type]) || !is_array($config[$type])) {
+                continue;
             }
+            $method = 'set'.ucfirst($opts['method']);
+            $package->{$method}(
+                $this->parseLinks(
+                    $package->getName(),
+                    $package->getPrettyVersion(),
+                    $opts['method'],
+                    $config[$type]
+                )
+            );
         }
 
         $package = $this->configureObject($package, $config);
@@ -74,7 +75,7 @@ class ArrayLoader implements LoaderInterface
     }
 
     /**
-     * @param list<array<mixed>> $versions
+     * @param array<array<mixed>> $versions
      *
      * @return list<CompletePackage|CompleteAliasPackage>
      */
@@ -270,7 +271,7 @@ class ArrayLoader implements LoaderInterface
             }
 
             if (!empty($config['keywords']) && \is_array($config['keywords'])) {
-                $package->setKeywords($config['keywords']);
+                $package->setKeywords(array_map('strval', $config['keywords']));
             }
 
             if (!empty($config['license'])) {
@@ -364,6 +365,9 @@ class ArrayLoader implements LoaderInterface
     {
         $res = [];
         foreach ($links as $target => $constraint) {
+            if (!is_string($constraint)) {
+                continue;
+            }
             $target = strtolower((string) $target);
             $res[$target] = $this->createLink($source, $sourceVersion, $description, $target, $constraint);
         }

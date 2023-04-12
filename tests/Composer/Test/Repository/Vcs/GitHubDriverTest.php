@@ -94,6 +94,7 @@ class GitHubDriverTest extends TestCase
         $this->assertEquals('test_master', $gitHubDriver->getRootIdentifier());
 
         $dist = $gitHubDriver->getDist($sha);
+        self::assertIsArray($dist);
         $this->assertEquals('zip', $dist['type']);
         $this->assertEquals('https://api.github.com/repos/composer/packagist/zipball/SOMESHA', $dist['url']);
         $this->assertEquals('SOMESHA', $dist['reference']);
@@ -136,6 +137,7 @@ class GitHubDriverTest extends TestCase
         $this->assertEquals('test_master', $gitHubDriver->getRootIdentifier());
 
         $dist = $gitHubDriver->getDist($sha);
+        self::assertIsArray($dist);
         $this->assertEquals('zip', $dist['type']);
         $this->assertEquals('https://api.github.com/repos/composer/packagist/zipball/SOMESHA', $dist['url']);
         $this->assertEquals($sha, $dist['reference']);
@@ -181,6 +183,7 @@ class GitHubDriverTest extends TestCase
         $this->assertEquals('test_master', $gitHubDriver->getRootIdentifier());
 
         $dist = $gitHubDriver->getDist($sha);
+        self::assertIsArray($dist);
         $this->assertEquals('zip', $dist['type']);
         $this->assertEquals('https://api.github.com/repos/composer/packagist/zipball/SOMESHA', $dist['url']);
         $this->assertEquals($sha, $dist['reference']);
@@ -194,6 +197,44 @@ class GitHubDriverTest extends TestCase
 
         $this->assertIsArray($data);
         $this->assertArrayNotHasKey('abandoned', $data);
+    }
+
+    public function testInvalidSupportData(): void
+    {
+        $repoUrl = 'http://github.com/composer/packagist';
+        $repoApiUrl = 'https://api.github.com/repos/composer/packagist';
+        $identifier = 'feature/3.2-foo';
+        $sha = 'SOMESHA';
+
+        $io = $this->getMockBuilder('Composer\IO\IOInterface')->getMock();
+        $io->expects($this->any())
+            ->method('isInteractive')
+            ->will($this->returnValue(true));
+
+        $httpDownloader = $this->getHttpDownloaderMock($io, $this->config);
+        $httpDownloader->expects(
+            [
+                ['url' => $repoApiUrl, 'body' => '{"master_branch": "test_master", "owner": {"login": "composer"}, "name": "packagist"}'],
+                ['url' => 'https://api.github.com/repos/composer/packagist/contents/composer.json?ref=feature%2F3.2-foo', 'body' => '{"encoding":"base64","content":"'.base64_encode('{"support": "'.$repoUrl.'" }').'"}'],
+                ['url' => 'https://api.github.com/repos/composer/packagist/commits/feature%2F3.2-foo', 'body' => '{"commit": {"committer":{ "date": "2012-09-10"}}}'],
+                ['url' => 'https://api.github.com/repos/composer/packagist/contents/.github/FUNDING.yml', 'body' => '{"encoding": "base64", "content": "'.base64_encode("custom: https://example.com").'"}'],
+            ],
+            true
+        );
+
+        $repoConfig = [
+            'url' => $repoUrl,
+        ];
+
+        $gitHubDriver = new GitHubDriver($repoConfig, $io, $this->config, $httpDownloader, $this->getProcessExecutorMock());
+        $gitHubDriver->initialize();
+        $this->setAttribute($gitHubDriver, 'tags', [$identifier => $sha]);
+        $this->setAttribute($gitHubDriver, 'branches', ['test_master' => $sha]);
+
+        $data = $gitHubDriver->getComposerInformation($identifier);
+
+        $this->assertIsArray($data);
+        $this->assertSame('https://github.com/composer/packagist/tree/feature/3.2-foo', $data['support']['source']);
     }
 
     public function testPublicRepositoryArchived(): void
@@ -288,6 +329,7 @@ class GitHubDriverTest extends TestCase
         $this->assertEquals('test_master', $gitHubDriver->getRootIdentifier());
 
         $dist = $gitHubDriver->getDist($sha);
+        self::assertIsArray($dist);
         $this->assertEquals('zip', $dist['type']);
         $this->assertEquals('https://api.github.com/repos/composer/packagist/zipball/SOMESHA', $dist['url']);
         $this->assertEquals($sha, $dist['reference']);
@@ -326,7 +368,7 @@ class GitHubDriverTest extends TestCase
     /**
      * @return list<array{string}>
      */
-    public function invalidUrlProvider()
+    public static function invalidUrlProvider()
     {
         return [
             ['https://github.com/acme'],
@@ -348,7 +390,7 @@ class GitHubDriverTest extends TestCase
     /**
      * @return list<array{bool, string}>
      */
-    public function supportsProvider(): array
+    public static function supportsProvider(): array
     {
         return [
             [false, 'https://github.com/acme'],

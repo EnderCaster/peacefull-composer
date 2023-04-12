@@ -66,7 +66,7 @@ versions of composer and if found, installs the latest.
 
 <info>php composer.phar self-update</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#self-update-selfupdate-
+Read more at https://getcomposer.org/doc/03-cli.md#self-update-selfupdate
 EOT
             )
         ;
@@ -369,6 +369,7 @@ TAGSPUBKEY
         $io->write('Open <info>https://composer.github.io/pubkeys.html</info> to find the latest keys');
 
         $validator = static function ($value): string {
+            $value = (string) $value;
             if (!Preg::isMatch('{^-----BEGIN PUBLIC KEY-----$}', trim($value))) {
                 throw new \UnexpectedValueException('Invalid input');
             }
@@ -379,7 +380,7 @@ TAGSPUBKEY
         $devKey = '';
         while (!Preg::isMatch('{(-----BEGIN PUBLIC KEY-----.+?-----END PUBLIC KEY-----)}s', $devKey, $match)) {
             $devKey = $io->askAndValidate('Enter Dev / Snapshot Public Key (including lines with -----): ', $validator);
-            while ($line = $io->ask('')) {
+            while ($line = $io->ask('', '')) {
                 $devKey .= trim($line)."\n";
                 if (trim($line) === '-----END PUBLIC KEY-----') {
                     break;
@@ -392,7 +393,7 @@ TAGSPUBKEY
         $tagsKey = '';
         while (!Preg::isMatch('{(-----BEGIN PUBLIC KEY-----.+?-----END PUBLIC KEY-----)}s', $tagsKey, $match)) {
             $tagsKey = $io->askAndValidate('Enter Tags Public Key (including lines with -----): ', $validator);
-            while ($line = $io->ask('')) {
+            while ($line = $io->ask('', '')) {
                 $tagsKey .= trim($line)."\n";
                 if (trim($line) === '-----END PUBLIC KEY-----') {
                     break;
@@ -596,7 +597,7 @@ TAGSPUBKEY
         $helpMessage = 'Please run the self-update command as an Administrator.';
         $question = 'Complete this operation with Administrator privileges [<comment>Y,n</comment>]? ';
 
-        if (!$io->askConfirmation($question, false)) {
+        if (!$io->askConfirmation($question, true)) {
             $io->writeError('<warning>Operation cancelled. '.$helpMessage.'</warning>');
 
             return false;

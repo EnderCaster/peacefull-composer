@@ -61,7 +61,7 @@ class ComposerRepositoryTest extends TestCase
         }
     }
 
-    public function loadDataProvider(): array
+    public static function loadDataProvider(): array
     {
         return [
             // Old repository format
@@ -86,6 +86,19 @@ class ComposerRepositoryTest extends TestCase
                     'bar/foo' => [
                         '3.14' => ['name' => 'bar/foo', 'version' => '3.14'],
                         '3.145' => ['name' => 'bar/foo', 'version' => '3.145'],
+                    ],
+                ]],
+            ],
+            // New repository format but without versions as keys should also be supported
+            [
+                [
+                    ['name' => 'bar/foo', 'version' => '3.14'],
+                    ['name' => 'bar/foo', 'version' => '3.145'],
+                ],
+                ['packages' => [
+                    'bar/foo' => [
+                        ['name' => 'bar/foo', 'version' => '3.14'],
+                        ['name' => 'bar/foo', 'version' => '3.145'],
                     ],
                 ]],
             ],
@@ -274,6 +287,8 @@ class ComposerRepositoryTest extends TestCase
 
     /**
      * @dataProvider provideCanonicalizeUrlTestCases
+     * @param non-empty-string $url
+     * @param non-empty-string $repositoryUrl
      */
     public function testCanonicalizeUrl(string $expected, string $url, string $repositoryUrl): void
     {
@@ -299,7 +314,7 @@ class ComposerRepositoryTest extends TestCase
         $this->assertSame($expected, $method->invoke($repository, $url));
     }
 
-    public function provideCanonicalizeUrlTestCases(): array
+    public static function provideCanonicalizeUrlTestCases(): array
     {
         return [
             [

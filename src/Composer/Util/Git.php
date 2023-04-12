@@ -62,14 +62,14 @@ class Git
         if (!$initialClone) {
             // capture username/password from URL if there is one and we have no auth configured yet
             $this->process->execute('git remote -v', $output, $cwd);
-            if (Preg::isMatch('{^(?:composer|origin)\s+https?://(.+):(.+)@([^/]+)}im', $output, $match) && !$this->io->hasAuthentication($match[3])) {
+            if (Preg::isMatchStrictGroups('{^(?:composer|origin)\s+https?://(.+):(.+)@([^/]+)}im', $output, $match) && !$this->io->hasAuthentication($match[3])) {
                 $this->io->setAuthentication($match[3], rawurldecode($match[1]), rawurldecode($match[2]));
             }
         }
 
         $protocols = $this->config->get('github-protocols');
         // public github, autoswitch protocols
-        if (Preg::isMatch('{^(?:https?|git)://' . self::getGitHubDomainsRegex($this->config) . '/(.*)}', $url, $match)) {
+        if (Preg::isMatchStrictGroups('{^(?:https?|git)://' . self::getGitHubDomainsRegex($this->config) . '/(.*)}', $url, $match)) {
             $messages = [];
             foreach ($protocols as $protocol) {
                 if ('ssh' === $protocol) {
@@ -104,8 +104,8 @@ class Git
         if ($bypassSshForGitHub || 0 !== $this->process->execute($command, $commandOutput, $cwd)) {
             $errorMsg = $this->process->getErrorOutput();
             // private github repository without ssh key access, try https with auth
-            if (Preg::isMatch('{^git@' . self::getGitHubDomainsRegex($this->config) . ':(.+?)\.git$}i', $url, $match)
-                || Preg::isMatch('{^https?://' . self::getGitHubDomainsRegex($this->config) . '/(.*?)(?:\.git)?$}i', $url, $match)
+            if (Preg::isMatchStrictGroups('{^git@' . self::getGitHubDomainsRegex($this->config) . ':(.+?)\.git$}i', $url, $match)
+                || Preg::isMatchStrictGroups('{^https?://' . self::getGitHubDomainsRegex($this->config) . '/(.*?)(?:\.git)?$}i', $url, $match)
             ) {
                 if (!$this->io->hasAuthentication($match[1])) {
                     $gitHubUtil = new GitHub($this->io, $this->config, $this->process);
@@ -127,7 +127,7 @@ class Git
                     $credentials = [rawurlencode($auth['username']), rawurlencode($auth['password'])];
                     $errorMsg = $this->process->getErrorOutput();
                 }
-            } elseif (Preg::isMatch('{^https://(bitbucket\.org)/(.*?)(?:\.git)?$}i', $url, $match)) { //bitbucket oauth
+            } elseif (Preg::isMatchStrictGroups('{^https://(bitbucket\.org)/(.*?)(?:\.git)?$}i', $url, $match)) { //bitbucket oauth
                 $bitbucketUtil = new Bitbucket($this->io, $this->config, $this->process);
 
                 if (!$this->io->hasAuthentication($match[1])) {
@@ -172,8 +172,8 @@ class Git
                     $errorMsg = $this->process->getErrorOutput();
                 }
             } elseif (
-                Preg::isMatch('{^(git)@' . self::getGitLabDomainsRegex($this->config) . ':(.+?\.git)$}i', $url, $match)
-                || Preg::isMatch('{^(https?)://' . self::getGitLabDomainsRegex($this->config) . '/(.*)}i', $url, $match)
+                Preg::isMatchStrictGroups('{^(git)@' . self::getGitLabDomainsRegex($this->config) . ':(.+?\.git)$}i', $url, $match)
+                || Preg::isMatchStrictGroups('{^(https?)://' . self::getGitLabDomainsRegex($this->config) . '/(.*)}i', $url, $match)
             ) {
                 if ($match[1] === 'git') {
                     $match[1] = 'https';
@@ -297,9 +297,31 @@ class Git
         return true;
     }
 
-    public function fetchRefOrSyncMirror(string $url, string $dir, string $ref): bool
+    public function fetchRefOrSyncMirror(string $url, string $dir, string $ref, string $prettyVersion = null): bool
     {
         if ($this->checkRefIsInMirror($dir, $ref)) {
+            if (Preg::isMatch('{^[a-f0-9]{40}$}', $ref) && $prettyVersion !== null) {
+                $branch = Preg::replace('{(?:^dev-|(?:\.x)?-dev$)}i', '', $prettyVersion);
+                $branches = null;
+                $tags = null;
+                if (0 === $this->process->execute('git branch', $output, $dir)) {
+                    $branches = $output;
+                }
+                if (0 === $this->process->execute('git tag', $output, $dir)) {
+                    $tags = $output;
+                }
+
+                // if the pretty version cannot be found as a branch (nor branch with 'v' in front of the branch as it may have been stripped when generating pretty name),
+                // nor as a tag, then we sync the mirror as otherwise it will likely fail during install.
+                // this can occur if a git tag gets created *after* the reference is already put into the cache, as the ref check above will then not sync the new tags
+                // see https://github.com/composer/composer/discussions/11002
+                if (null !== $branches && !Preg::isMatch('{^[\s*]*v?'.preg_quote($branch).'$}m', $branches)
+                    && null !== $tags && !Preg::isMatch('{^[\s*]*'.preg_quote($branch).'$}m', $tags)
+                ) {
+                    $this->syncMirror($url, $dir);
+                }
+            }
+
             return true;
         }
 

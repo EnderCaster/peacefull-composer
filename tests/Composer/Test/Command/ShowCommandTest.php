@@ -52,14 +52,14 @@ class ShowCommandTest extends TestCase
             'require' => $requires === [] ? new \stdClass : $requires,
         ]);
 
-        $pkg = $this->getPackage('vendor/package', '1.0.0');
+        $pkg = self::getPackage('vendor/package', '1.0.0');
         $pkg->setDescription('description of installed package');
 
         $this->createInstalledJson([
             $pkg,
-            $this->getPackage('outdated/major', '1.0.0'),
-            $this->getPackage('outdated/minor', '1.0.0'),
-            $this->getPackage('outdated/patch', '1.0.0'),
+            self::getPackage('outdated/major', '1.0.0'),
+            self::getPackage('outdated/minor', '1.0.0'),
+            self::getPackage('outdated/patch', '1.0.0'),
         ]);
 
         $appTester = $this->getApplicationTester();
@@ -67,7 +67,7 @@ class ShowCommandTest extends TestCase
         self::assertSame(trim($expected), trim($appTester->getDisplay(true)));
     }
 
-    public function provideShow(): \Generator
+    public static function provideShow(): \Generator
     {
         yield 'default shows installed with version and description' => [
             [],
@@ -102,10 +102,10 @@ vendor/package generic description',
 ! patch or minor release available - update recommended
 ~ major release available - update possible
 
-Direct dependencies:
+Direct dependencies required in composer.json:
 Everything up to date
 
-Transitive dependencies:
+Transitive dependencies not required in composer.json:
 outdated/major 1.0.0 ~ 2.0.0
 outdated/minor 1.0.0 <highlight>! 1.1.1</highlight>
 outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
@@ -123,16 +123,24 @@ outdated/major 1.0.0 ~ 2.0.0',
             ],
         ];
 
+        yield 'outdated deps with --direct show msg if all up to date' => [
+            ['command' => 'outdated', '--direct' => true],
+            'All your direct dependencies are up to date',
+            [
+                'vendor/package' => '*',
+            ],
+        ];
+
         yield 'outdated deps with --major-only only shows major updates' => [
             ['command' => 'outdated', '--major-only' => true],
 'Legend:
 ! patch or minor release available - update recommended
 ~ major release available - update possible
 
-Direct dependencies:
+Direct dependencies required in composer.json:
 Everything up to date
 
-Transitive dependencies:
+Transitive dependencies not required in composer.json:
 outdated/major 1.0.0 ~ 2.0.0',
         ];
 
@@ -142,10 +150,10 @@ outdated/major 1.0.0 ~ 2.0.0',
 ! patch or minor release available - update recommended
 ~ major release available - update possible
 
-Direct dependencies:
+Direct dependencies required in composer.json:
 outdated/minor 1.0.0 <highlight>! 1.1.1</highlight>
 
-Transitive dependencies:
+Transitive dependencies not required in composer.json:
 outdated/major 1.0.0 <highlight>! 1.1.1</highlight>
 outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
             ['outdated/minor' => '*'],
@@ -157,14 +165,96 @@ outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
 ! patch or minor release available - update recommended
 ~ major release available - update possible
 
-Direct dependencies:
+Direct dependencies required in composer.json:
 Everything up to date
 
-Transitive dependencies:
+Transitive dependencies not required in composer.json:
 outdated/major 1.0.0 <highlight>! 1.0.1</highlight>
 outdated/minor 1.0.0 <highlight>! 1.0.1</highlight>
 outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
         ];
+    }
+
+    public function testOutdatedFiltersAccordingToPlatformReqsAndWarns(): void
+    {
+        $this->initTempComposer([
+            'repositories' => [
+                'packages' => [
+                    'type' => 'package',
+                    'package' => [
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.0.0'],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.1.0', 'require' => ['ext-missing' => '3']],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.2.0', 'require' => ['ext-missing' => '3']],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.3.0', 'require' => ['ext-missing' => '3']],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->createInstalledJson([
+            self::getPackage('vendor/package', '1.1.0'),
+        ]);
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated']);
+        self::assertSame("<warning>Cannot use vendor/package 1.1.0 as it requires ext-missing 3 which is missing from your platform.
+Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+Everything up to date
+
+Transitive dependencies not required in composer.json:
+vendor/package 1.1.0 ~ 1.0.0", trim($appTester->getDisplay(true)));
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated', '--verbose' => true]);
+        self::assertSame("<warning>Cannot use vendor/package's latest version 1.3.0 as it requires ext-missing 3 which is missing from your platform.
+<warning>Cannot use vendor/package 1.2.0 as it requires ext-missing 3 which is missing from your platform.
+<warning>Cannot use vendor/package 1.1.0 as it requires ext-missing 3 which is missing from your platform.
+Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+Everything up to date
+
+Transitive dependencies not required in composer.json:
+vendor/package 1.1.0 ~ 1.0.0", trim($appTester->getDisplay(true)));
+    }
+
+    public function testOutdatedFiltersAccordingToPlatformReqsWithoutWarningForHigherVersions(): void
+    {
+        $this->initTempComposer([
+            'repositories' => [
+                'packages' => [
+                    'type' => 'package',
+                    'package' => [
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.0.0'],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.1.0'],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.2.0'],
+                        ['name' => 'vendor/package', 'description' => 'generic description', 'version' => '1.3.0', 'require' => ['php' => '^99']],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->createInstalledJson([
+            self::getPackage('vendor/package', '1.1.0'),
+        ]);
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated']);
+        self::assertSame("Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+Everything up to date
+
+Transitive dependencies not required in composer.json:
+vendor/package 1.1.0 <highlight>! 1.2.0</highlight>", trim($appTester->getDisplay(true)));
     }
 
     public function testShowPlatformOnlyShowsPlatformPackages(): void
@@ -181,7 +271,7 @@ outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
         ]);
 
         $this->createInstalledJson([
-            $this->getPackage('vendor/package', '1.0.0'),
+            self::getPackage('vendor/package', '1.0.0'),
         ]);
 
         $appTester = $this->getApplicationTester();
@@ -190,6 +280,80 @@ outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
         foreach (Regex::matchAll('{^(\w+)}m', $output)->matches as $m) {
             self::assertTrue(PlatformRepository::isPlatformPackage((string) $m[1]));
         }
+    }
+
+    public function testShowPlatformWorksWithoutComposerJson(): void
+    {
+        $this->initTempComposer([]);
+        unlink('./composer.json');
+        unlink('./auth.json');
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'show', '-p' => true]);
+        $output = trim($appTester->getDisplay(true));
+        foreach (Regex::matchAll('{^(\w+)}m', $output)->matches as $m) {
+            self::assertTrue(PlatformRepository::isPlatformPackage((string) $m[1]));
+        }
+    }
+
+    public function testOutdatedWithZeroMajor(): void
+    {
+        $this->initTempComposer([
+            'repositories' => [
+                'packages' => [
+                    'type' => 'package',
+                    'package' => [
+                        ['name' => 'zerozero/major', 'description' => 'generic description', 'version' => '0.0.1'],
+                        ['name' => 'zerozero/major', 'description' => 'generic description', 'version' => '0.0.2'],
+                        ['name' => 'zero/major', 'description' => 'generic description', 'version' => '0.1.0'],
+                        ['name' => 'zero/major', 'description' => 'generic description', 'version' => '0.2.0'],
+                        ['name' => 'zero/minor', 'description' => 'generic description', 'version' => '0.1.0'],
+                        ['name' => 'zero/minor', 'description' => 'generic description', 'version' => '0.1.2'],
+                        ['name' => 'zero/patch', 'description' => 'generic description', 'version' => '0.1.2'],
+                        ['name' => 'zero/patch', 'description' => 'generic description', 'version' => '0.1.2.1'],
+                    ],
+                ],
+            ],
+            'require' => [
+                'zerozero/major' => '^0.0.1',
+                'zero/major' => '^0.1',
+                'zero/minor' => '^0.1',
+                'zero/patch' => '^0.1',
+            ],
+        ]);
+
+        $this->createInstalledJson([
+            self::getPackage('zerozero/major', '0.0.1'),
+            self::getPackage('zero/major', '0.1.0'),
+            self::getPackage('zero/minor', '0.1.0'),
+            self::getPackage('zero/patch', '0.1.2'),
+        ]);
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated', '--direct' => true, '--patch-only' => true]);
+        self::assertSame(
+'Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+zero/patch 0.1.2 <highlight>! 0.1.2.1</highlight>', trim($appTester->getDisplay(true)));
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated', '--direct' => true, '--minor-only' => true]);
+        self::assertSame(
+'Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+zero/minor 0.1.0 <highlight>! 0.1.2  </highlight>
+zero/patch 0.1.2 <highlight>! 0.1.2.1</highlight>', trim($appTester->getDisplay(true)));
+
+        $appTester = $this->getApplicationTester();
+        $appTester->run(['command' => 'outdated', '--direct' => true, '--major-only' => true]);
+        self::assertSame(
+'Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+zero/major     0.1.0 ~ 0.2.0
+zerozero/major 0.0.1 ~ 0.0.2', trim($appTester->getDisplay(true)));
     }
 
     public function testShowAllShowsAllSections(): void
@@ -205,13 +369,13 @@ outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>',
             ],
         ]);
 
-        $pkg = $this->getPackage('vendor/installed', '2.0.0');
+        $pkg = self::getPackage('vendor/installed', '2.0.0');
         $pkg->setDescription('description of installed package');
         $this->createInstalledJson([
             $pkg,
         ]);
 
-        $pkg = $this->getPackage('vendor/locked', '3.0.0');
+        $pkg = self::getPackage('vendor/locked', '3.0.0');
         $pkg->setDescription('description of locked package');
         $this->createComposerLock([
             $pkg,

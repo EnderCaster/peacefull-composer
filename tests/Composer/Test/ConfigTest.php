@@ -35,7 +35,7 @@ class ConfigTest extends TestCase
         $this->assertEquals($expected, $config->getRepositories());
     }
 
-    public function dataAddPackagistRepository(): array
+    public static function dataAddPackagistRepository(): array
     {
         $data = [];
         $data['local config inherits system defaults'] = [
@@ -266,7 +266,7 @@ class ConfigTest extends TestCase
     /**
      * @return string[][] List of test URLs that should pass strict security
      */
-    public function allowedUrlProvider(): array
+    public static function allowedUrlProvider(): array
     {
         $urls = [
             'https://packagist.org',
@@ -287,7 +287,7 @@ class ConfigTest extends TestCase
     /**
      * @return string[][] List of test URLs that should not pass strict security
      */
-    public function prohibitedUrlProvider(): array
+    public static function prohibitedUrlProvider(): array
     {
         $urls = [
             'http://packagist.org',
@@ -398,7 +398,7 @@ class ConfigTest extends TestCase
         ];
         foreach ($keys as $key) {
             $value = $config->get($key);
-            $this->assertIsArray($value);
+            $this->assertIsArray($value); // @phpstan-ignore-line - PHPStan knows that its an array for all given keys
             $this->assertCount(0, $value);
         }
     }

@@ -75,7 +75,7 @@ class GitLabDriverTest extends TestCase
         $fs->removeDirectory($this->home);
     }
 
-    public function provideInitializeUrls(): array
+    public static function provideInitializeUrls(): array
     {
         return [
             ['https://gitlab.com/mygroup/myproject', 'https://gitlab.com/api/v4/projects/mygroup%2Fmyproject'],
@@ -86,6 +86,8 @@ class GitLabDriverTest extends TestCase
 
     /**
      * @dataProvider provideInitializeUrls
+     * @param non-empty-string $url
+     * @param non-empty-string $apiUrl
      */
     public function testInitialize(string $url, string $apiUrl): GitLabDriver
     {
@@ -126,6 +128,8 @@ JSON;
 
     /**
      * @dataProvider provideInitializeUrls
+     * @param non-empty-string $url
+     * @param non-empty-string $apiUrl
      */
     public function testInitializePublicProject(string $url, string $apiUrl): GitLabDriver
     {
@@ -164,6 +168,8 @@ JSON;
 
     /**
      * @dataProvider provideInitializeUrls
+     * @param non-empty-string $url
+     * @param non-empty-string $apiUrl
      */
     public function testInitializePublicProjectAsAnonymous(string $url, string $apiUrl): GitLabDriver
     {
@@ -236,6 +242,22 @@ JSON;
         $this->assertEquals('1.0.x', $driver->getRootIdentifier(), 'Root identifier is the default branch in GitLab');
         $this->assertEquals($url.'.git', $driver->getRepositoryUrl(), 'The repository URL is the SSH one by default');
         $this->assertEquals($url, $driver->getUrl());
+    }
+
+    public function testInvalidSupportData(): void
+    {
+        $driver = $this->testInitialize($repoUrl = 'https://gitlab.com/mygroup/myproject', 'https://gitlab.com/api/v4/projects/mygroup%2Fmyproject');
+        $this->setAttribute($driver, 'branches', ['main' => 'SOMESHA']);
+        $this->setAttribute($driver, 'tags', []);
+
+        $this->httpDownloader->expects([
+            ['url' => 'https://gitlab.com/api/v4/projects/mygroup%2Fmyproject/repository/files/composer%2Ejson/raw?ref=SOMESHA', 'body' => '{"support": "'.$repoUrl.'" }'],
+        ], true);
+
+        $data = $driver->getComposerInformation('main');
+
+        $this->assertIsArray($data);
+        $this->assertSame('https://gitlab.com/mygroup/myproject/-/tree/main', $data['support']['source']);
     }
 
     public function testGetDist(): void
@@ -435,7 +457,7 @@ JSON;
         $this->assertSame($expected, GitLabDriver::supports($this->io, $this->config, $url));
     }
 
-    public function dataForTestSupports(): array
+    public static function dataForTestSupports(): array
     {
         return [
             ['http://gitlab.com/foo/bar', true],
@@ -624,5 +646,16 @@ JSON;
         $driver = new GitLabDriver(['url' => $url], $this->io, $config, $this->httpDownloader, $this->process);
         $driver->initialize();
         $this->assertEquals('https://gitlab.com/mygroup/myproject.git', $driver->getRepositoryUrl(), 'Repository URL matches config request for http not git');
+    }
+
+    /**
+     * @param object $object
+     * @param mixed  $value
+     */
+    protected function setAttribute($object, string $attribute, $value): void
+    {
+        $attr = new \ReflectionProperty($object, $attribute);
+        $attr->setAccessible(true);
+        $attr->setValue($object, $value);
     }
 }

@@ -77,7 +77,7 @@ class ProcessExecutorTest extends TestCase
         $this->assertEquals('Executing command (CWD): ' . $expectedCommandOutput, trim($buffer->getOutput()));
     }
 
-    public function hidePasswordProvider(): array
+    public static function hidePasswordProvider(): array
     {
         return [
             ['echo https://foo:bar@example.org/', 'echo https://foo:***@example.org/'],
@@ -147,7 +147,7 @@ class ProcessExecutorTest extends TestCase
      * Each named test is an array of:
      *   argument, win-expected, unix-expected
      */
-    public function dataEscapeArguments(): array
+    public static function dataEscapeArguments(): array
     {
         return [
             // empty argument - must be quoted
@@ -180,10 +180,10 @@ class ProcessExecutorTest extends TestCase
             // double-quotes must be backslash-escaped
             'dq' => ['a"bc', 'a\^"bc', "'a\"bc'"],
 
-            // double-quotes must be backslash-escaped with preceeding backslashes doubled
+            // double-quotes must be backslash-escaped with preceding backslashes doubled
             'dq-bslash' => ['a\\"bc', 'a\\\\\^"bc', "'a\\\"bc'"],
 
-            // backslashes not preceeding a double-quote are treated as literal
+            // backslashes not preceding a double-quote are treated as literal
             'bslash' => ['ab\\\\c\\', 'ab\\\\c\\', "'ab\\\\c\\'"],
 
             // trailing backslashes must be doubled up when the argument is quoted

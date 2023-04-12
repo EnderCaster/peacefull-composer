@@ -72,6 +72,7 @@ class ProxyManagerTest extends TestCase
      *
      * @param array<string, mixed> $server
      * @param mixed[]              $expectedOptions
+     * @param non-empty-string     $url
      */
     public function testGetProxyForRequest(array $server, string $url, string $expectedUrl, array $expectedOptions, bool $expectedSecure, string $expectedMessage): void
     {
@@ -96,7 +97,7 @@ class ProxyManagerTest extends TestCase
         $this->assertTrue($condition, 'lastProxy check');
     }
 
-    public function dataRequest(): array
+    public static function dataRequest(): array
     {
         $server = [
             'http_proxy' => 'http://user:p%40ss@proxy.com',
@@ -150,7 +151,7 @@ class ProxyManagerTest extends TestCase
         $this->assertTrue($condition, 'message check');
     }
 
-    public function dataStatus(): array
+    public static function dataStatus(): array
     {
         // server, expectedStatus, expectedMessage
         return [

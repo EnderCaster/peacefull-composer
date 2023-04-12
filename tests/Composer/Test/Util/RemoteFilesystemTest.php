@@ -265,7 +265,7 @@ class RemoteFilesystemTest extends TestCase
      *
      * @return string[][]
      */
-    public function provideBitbucketPublicDownloadUrls(): array
+    public static function provideBitbucketPublicDownloadUrls(): array
     {
         return [
             ['https://bitbucket.org/seldaek/composer-live-test-repo/downloads/composer-unit-test-download-me.txt', '1234'],
@@ -276,10 +276,10 @@ class RemoteFilesystemTest extends TestCase
      * Tests that a BitBucket public download is correctly retrieved.
      *
      * @dataProvider provideBitbucketPublicDownloadUrls
+     * @param non-empty-string $url
      */
     public function testBitBucketPublicDownload(string $url, string $contents): void
     {
-        /** @var ConsoleIO $io */
         $io = $this
             ->getMockBuilder('Composer\IO\ConsoleIO')
             ->disableOriginalConstructor()
@@ -297,6 +297,7 @@ class RemoteFilesystemTest extends TestCase
      * Tests that a BitBucket public download is correctly retrieved when `bitbucket-oauth` is configured.
      *
      * @dataProvider provideBitbucketPublicDownloadUrls
+     * @param non-empty-string $url
      */
     public function testBitBucketPublicDownloadWithAuthConfigured(string $url, string $contents): void
     {

@@ -1830,7 +1830,7 @@ EOF;
     /**
      * @return array<string, mixed[]>
      */
-    public function platformCheckProvider(): array
+    public static function platformCheckProvider(): array
     {
         $versionParser = new VersionParser();
 
@@ -1860,6 +1860,18 @@ EOF;
                     'php' => new Link('a', 'php', $versionParser->parseConstraints('^7.2.8')),
                 ],
                 'specific_php_release',
+            ],
+            'Specific 64-bit PHP version' => [
+                [
+                    'php-64bit' => new Link('a', 'php-64bit', $versionParser->parseConstraints('^7.2.8')),
+                ],
+                'specific_php_64bit_required',
+            ],
+            '64-bit PHP required' => [
+                [
+                    'php-64bit' => new Link('a', 'php-64bit', $versionParser->parseConstraints('*')),
+                ],
+                'php_64bit_required',
             ],
             'No PHP required' => [
                 [
